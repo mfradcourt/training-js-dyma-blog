@@ -1,10 +1,27 @@
 import './assets/styles/styles.scss';
 import './index.scss';
+import { openModal } from './assets/javascripts/modal';
 
 const articleContainerElement = document.querySelector('.articles-container');
+const categoriesContainerElement = document.querySelector('.categories');
+const selectElement = document.querySelector('select');
+let filter;
+let articles;
+let sortBy = 'desc';
 
-const createArticles = (articles) => {
-  const articlesDOM = articles.map((article) => {
+selectElement.addEventListener('change', () => {
+  sortBy = selectElement.value;
+  fetchArticle();
+});
+
+const createArticles = () => {
+  const articlesDOM = articles.filter(articles => {
+    if (filter) {
+      return articles.category === filter;
+    } else {
+      return true;
+    }
+  }).map((article) => {
     const articleDOM = document.createElement('div');
     articleDOM.classList.add('article');
     articleDOM.innerHTML = `
@@ -48,34 +65,88 @@ const createArticles = (articles) => {
   const deleteButtons = articleContainerElement.querySelectorAll('.btn-danger');
   deleteButtons.forEach((button) => {
     button.addEventListener('click', async (event) => {
-      try {
-        const target = event.target;
-        const articleId = target.dataset.id;
-        const response = await fetch(
-          `https://restapi.fr/api/fgh45_articles/${articleId}`,
-          {
-            method: 'DELETE',
-          }
-        );
-        const body = await response.json();
-        fetchArticle();
-      } catch (e) {
-        console.log('e : ', e);
+      const result = await openModal(
+        'Etes-vous sur de vouloir supprimer votre article ?'
+      );
+
+      if (result === true) {
+        try {
+          const target = event.target;
+          const articleId = target.dataset.id;
+          const response = await fetch(
+            `https://restapi.fr/api/fgh45_articles/${articleId}`,
+            {
+              method: 'DELETE',
+            }
+          );
+          const body = await response.json();
+          fetchArticle();
+        } catch (e) {
+          console.log('e : ', e);
+        }
       }
     });
   });
 };
 
+const displayMenuCategories = (categoriesArr) => {
+  const liElements = categoriesArr.map(categoryElem => {
+    const li = document.createElement('li');
+    li.innerHTML = `${categoryElem[0]} <strong>${categoryElem[1]}</strong>`;
+    if (categoryElem[0] === filter) {
+      li.classList.add('active');
+    }
+
+    li.addEventListener('click', () => {
+      if (filter === categoryElem[0]) {
+        filter = null;
+        li.classList.remove('active');
+        createArticles();
+      } else {
+        filter = categoryElem[0];
+        liElements.forEach(li => {
+          li.classList.remove('active');
+        });
+        li.classList.add('active');
+        createArticles();
+      }
+    });
+
+    return li;
+  });
+
+  categoriesContainerElement.innerHTML = '';
+  categoriesContainerElement.append(...liElements);
+}
+
+const createMenuCategories = () => {
+  const categories = articles.reduce((acc, article) => {
+    if (acc[article.category]) {
+      acc[article.category]++;
+    } else {
+      acc[article.category] = 1;
+    }
+
+    return acc;
+  }, {});
+
+  const categoriesArr = Object.keys(categories).map(category => {
+    return [category, categories[category]];
+  }).sort((c1, c2) => c1[0].localeCompare(c2[0]));
+  displayMenuCategories(categoriesArr);
+};
+
 const fetchArticle = async () => {
   try {
-    const response = await fetch('https://restapi.fr/api/fgh45_articles');
-    let articles = await response.json();
+    const response = await fetch(`https://restapi.fr/api/fgh45_articles?sort=createdAt:${sortBy}`);
+    articles = await response.json();
     // Restapi retourne un objet s'il n'y a qu'un seul article
     // nous devons donc le transformer en tableau :
     if (!Array.isArray(articles)) {
       articles = [articles];
     }
-    createArticles(articles);
+    createArticles();
+    createMenuCategories();
   } catch (e) {
     console.log('e : ', e);
   }
