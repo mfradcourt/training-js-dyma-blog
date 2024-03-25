@@ -13,12 +13,18 @@ const createArticles = (articles) => {
   alt="profile"
 />
 <h2>${article.title}</h2>
-<p class="article-author">${article.author} - ${article.category}</p>
+<p class="article-author">${article.author} - ${(new Date(article.createdAt)).toLocaleDateString('fr-BE',{
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    })}</p>
 <p class="article-content">
   ${article.content}
 </p>
 <div class="article-actions">
   <button class="btn btn-danger" data-id=${article._id} >Supprimer</button>
+  <button class="btn btn-primary" data-id=${article._id} >Modifier</button>
 </div>
 `;
     return articleDOM;
@@ -26,6 +32,18 @@ const createArticles = (articles) => {
 
   articleContainerElement.innerHTML = '';
   articleContainerElement.append(...articlesDOM);
+
+  const editButtons = articleContainerElement.querySelectorAll('.btn-primary');
+  editButtons.forEach(button => {
+    button.addEventListener('click', async event => {
+      try {
+        const articleId = event.target.dataset.id;
+        location.assign('/form/form.html?articleId=' + articleId);
+      } catch (e) {
+        console.error('e : ', e);
+      }
+    });
+  });
 
   const deleteButtons = articleContainerElement.querySelectorAll('.btn-danger');
   deleteButtons.forEach((button) => {
@@ -40,7 +58,6 @@ const createArticles = (articles) => {
           }
         );
         const body = await response.json();
-        console.log(body);
         fetchArticle();
       } catch (e) {
         console.log('e : ', e);
